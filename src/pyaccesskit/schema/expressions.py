@@ -73,9 +73,9 @@ def render_literal(value: DefaultValue) -> str:
             raise SpecError("Access date/times have no time zone; pass a naive datetime")
         if value.microsecond:
             raise SpecError("Access date/time literals have whole-second precision")
-        return f"#{value:%Y-%m-%d %H:%M:%S}#"
+        return f"#{value.year:04d}-{value:%m-%d %H:%M:%S}#"  # %Y is unpadded on Linux
     if isinstance(value, date):
-        return f"#{value:%Y-%m-%d}#"
+        return f"#{value.year:04d}-{value:%m-%d}#"
     if isinstance(value, time):
         if value.tzinfo is not None or value.microsecond:
             raise SpecError("Access time literals are naive and have whole-second precision")

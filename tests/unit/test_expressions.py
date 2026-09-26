@@ -99,3 +99,13 @@ def test_int_round_trip(value: int) -> None:
 def test_datetime_round_trip(value: datetime) -> None:
     parsed = parse_literal(render_literal(value))
     assert parsed == value or (value.time() == time(0) and parsed == value)
+
+
+@pytest.mark.parametrize(
+    ("value", "text"),
+    [(datetime(999, 1, 2, 3, 4, 5), "#0999-01-02 03:04:05#"), (date(45, 6, 7), "#0045-06-07#")],
+)
+def test_years_before_1000_are_zero_padded(value: date, text: str) -> None:
+    """``strftime('%Y')`` pads to four digits on Windows but not on Linux; the rendering must not depend on it."""
+    assert render_literal(value) == text
+    assert parse_literal(text) == value
