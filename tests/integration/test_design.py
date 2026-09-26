@@ -209,3 +209,22 @@ def test_query_text_import_requires_replace(tmp_path: Path) -> None:
             db.objects.import_text("query", "qryCustomers", text)
         db.objects.import_text("query", "qryCustomers", text, replace=True)
         assert "Customers" in db.queries["qryCustomers"].sql
+
+
+def test_design_open_skips_the_startup_form_and_keeps_the_setting(tmp_path: Path) -> None:
+    """Macro security does not stop Access from opening the StartUpForm; PyAccessKit must (ADR 0002)."""
+    path = tmp_path / "startup.accdb"
+    with AccessDatabase.create(path, engine="access") as db:
+        _schema(db)
+        db.modules.create(
+            "modCalc",
+            "Public Function Twice(ByVal x As Long) As Long\n    Twice = 2 * x\nEnd Function\n",
+        )
+        with db.forms.create("frmStart", record_source="Customers") as form:
+            form.textbox("CustomerName")
+            form.textbox(name="txtCalc", control_source="=Twice(21)")
+            form.on_current(Vba("Me.txtCalc.Requery"))
+        db.properties["StartUpForm"] = "frmStart"
+    with AccessDatabase.open(path, engine="access") as db:
+        db.forms["frmStart"].check_opens()  # needs a design session: opens the database in Access
+        assert db.properties["StartUpForm"] == "frmStart"

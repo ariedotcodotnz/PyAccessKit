@@ -256,3 +256,27 @@ def test_add_column_with_clashing_index_name_changes_nothing(tmp_path: Path) -> 
             table.add_column(Column.text("Code", unique=True))
         assert table.to_spec().column_names == ("A",)
         table.add_column(Column.text("Code"))  # retrying without the shorthand works
+
+
+def test_binary_parameters_round_trip_exactly(tmp_path: Path) -> None:
+    """Implicit query parameters are text in DAO; bytes bound to them used to be corrupted (ADR 0002)."""
+    data = bytes(range(256)) * 3 + b"end"
+    with AccessDatabase.create(tmp_path / "blob.accdb") as db:
+        db.tables.create(
+            "Files",
+            columns=[Column.autonumber("FileID", primary_key=True), Column.ole_object("Payload")],
+        )
+        db.execute("INSERT INTO Files (Payload) VALUES ([payload])", {"payload": data})
+        assert db.fetch_all("SELECT Payload FROM Files") == [{"Payload": data}]
+        db.queries.create("qryAddFile", "INSERT INTO Files (Payload) VALUES ([payload])")
+        with pytest.raises(SpecError, match="LongBinary"):
+            db.queries["qryAddFile"].execute({"payload": data})
+
+
+def test_fresh_database_lists_no_design_objects(tmp_path: Path) -> None:
+    """DAO-created files lack the Forms/Reports/... containers until Access has opened them."""
+    with AccessDatabase.create(tmp_path / "fresh.accdb") as db:
+        db.tables.create("T", columns=[Column.text("A")])
+    with AccessDatabase.open(tmp_path / "fresh.accdb", readonly=True) as db:
+        for kind in ("form", "report", "macro", "module"):
+            assert db.objects.names(kind) == []

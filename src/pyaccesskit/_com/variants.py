@@ -26,6 +26,8 @@ def to_variant(value: Any) -> Any:
     * aware ``datetime`` → converted to local wall-clock time first (Access has no time zones);
     * ``date`` → midnight; ``time`` → a time on the OLE epoch day (how Access stores times of day).
     """
+    if isinstance(value, (bytearray, memoryview)):
+        return bytes(value)
     if isinstance(value, datetime):
         if value.tzinfo is not None:
             value = value.astimezone().replace(tzinfo=None)
@@ -49,9 +51,12 @@ def normalize(value: Any) -> Any:
     """Convert pywin32 return values to plain Python values.
 
     * ``pywintypes.datetime`` (VT_DATE) → naive :class:`datetime` with the stored wall-clock time;
+    * byte arrays (OLE Object / binary fields arrive as ``memoryview``) → :class:`bytes`;
     * tuples (SAFEARRAYs) are normalised recursively;
     * everything else (``Decimal`` for currency/decimal, ``None`` for Null/Empty...) is returned unchanged.
     """
+    if isinstance(value, memoryview):
+        return value.tobytes()
     if isinstance(value, pywintypes.TimeType):
         return datetime(
             value.year,
