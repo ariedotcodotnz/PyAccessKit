@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+site/
+
+# Virtual environments (incl. the optional x86 env used for in-process DAO tests)
+.venv/
+.venv-*/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Microsoft Access lock files and scratch databases
+*.laccdb
+*.ldb
+examples/out/
+scratch/
