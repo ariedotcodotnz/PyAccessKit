@@ -22,6 +22,7 @@ def open_engine(plan: EnginePlan) -> Any:
             exclusive=plan.exclusive,
             password=plan.password,
             native_defaults=plan.options.apply_native_defaults,
+            on_created=plan.on_created,
         )
     from pyaccesskit._engines.access import AccessEngine
     from pyaccesskit._win.access_process import AccessLaunchOptions
@@ -34,6 +35,7 @@ def open_engine(plan: EnginePlan) -> Any:
         exclusive=plan.exclusive,
         password=plan.password,
         design=plan.design,
+        on_created=plan.on_created,
         options=AccessLaunchOptions(
             progid=options.access_progid,
             visible=options.visible,

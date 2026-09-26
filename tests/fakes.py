@@ -12,7 +12,7 @@ from pyaccesskit._session.protocols import EnginePlan
 from pyaccesskit._session.session import Session
 from pyaccesskit.database import AccessDatabase
 from pyaccesskit.enums import Engine, Transport
-from pyaccesskit.errors import CapabilityError
+from pyaccesskit.errors import CapabilityError, DatabaseExistsError
 from pyaccesskit.options import SessionOptions
 
 
@@ -38,7 +38,12 @@ class FakeEngine:
         shared = factory.backends.setdefault(plan.path, FakeBackend(plan.path))
         self.backend = shared
         if plan.create:
+            if factory.created_elsewhere:  # another process wins the race for the file
+                plan.path.write_bytes(b"someone else's database")
+                raise DatabaseExistsError(f"{plan.path} already exists", path=plan.path)
             plan.path.write_bytes(b"fake accdb")
+            if plan.on_created is not None:
+                plan.on_created()
             if factory.fail_after_create:
                 raise RuntimeError("fake engine failed while configuring the new database")
 
@@ -103,6 +108,7 @@ class FakeFactory:
     close_errors: list[BaseException] = field(default_factory=list)
     close_interrupt: bool = False
     fail_after_create: bool = False
+    created_elsewhere: bool = False
 
     def __call__(self, plan: EnginePlan) -> FakeEngine:
         engine = FakeEngine(plan, self)

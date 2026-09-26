@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
@@ -46,6 +47,7 @@ class AccessEngine:
         password: str | None,
         design: bool,
         options: AccessLaunchOptions,
+        on_created: Callable[[], None] | None = None,
     ) -> None:
         self._path = path
         self._readonly = readonly
@@ -54,6 +56,7 @@ class AccessEngine:
         self._mode: Literal["hosted", "design"] = "hosted"
         self._db: Any = None
         self._design: AccessDesignBackend | None = None
+        self._on_created = on_created
         self._process = AccessProcess.launch(options, database=str(path))
         try:
             if create:
@@ -114,7 +117,9 @@ class AccessEngine:
                 str(self._path),
                 int(c.AcNewDatabaseFormat.acNewDatabaseFormatAccess2007),
             )
-        self._verify_current()
+        self._verify_current()  # confirms Access created *this* file and it is now its current database
+        if self._on_created is not None:
+            self._on_created()
 
     def _open_current(self) -> None:
         with self._process.com.op(f"open database {self._path} in Access", path=self._path):

@@ -73,6 +73,13 @@ def test_engine_failure_during_create_leaves_no_working_file(tmp_path: Path) -> 
     assert list(tmp_path.iterdir()) == []
 
 
+def test_failed_create_never_deletes_a_file_it_did_not_create(tmp_path: Path) -> None:
+    factory = FakeFactory(created_elsewhere=True)
+    with pytest.raises(DatabaseExistsError):
+        fake_database(tmp_path, factory=factory, atomic=False)
+    assert (tmp_path / "fake.accdb").read_bytes() == b"someone else's database"
+
+
 def test_close_from_another_thread_is_rejected(tmp_path: Path) -> None:
     db, factory = fake_database(tmp_path)
     caught: list[BaseException] = []
@@ -222,3 +229,34 @@ def test_label_names_stay_within_access_limits() -> None:
     assert all(len(name) <= 64 and name.endswith("_Label") for name in names)
     assert label_name_for("Short") == "Short_Label"
     layout_form(FormSpec(name="frm", controls=(TextBoxSpec(field=long_a),)))
+
+
+CONDITIONAL_MODULE = """\
+Private counter As Long
+#If VBA7 Then
+Private Declare PtrSafe Function GetTickCount Lib "kernel32" () As Long
+#Else
+Private Declare Function GetTickCount Lib "kernel32" () As Long
+#End If
+#If Win64 Then
+Private Function Bits() As Long
+    Bits = 64
+End Function
+#Else
+Private Function Bits() As Long
+    Bits = 32
+End Function
+#End If
+"""
+
+
+def test_conditional_compilation_blocks_are_not_split() -> None:
+    binding = EventBinding("Form", "OnLoad", "Load", Vba("counter = Bits()"))
+    text = build_module([binding], CONDITIONAL_MODULE)
+    handler = text.index("Private Sub Form_Load")
+    assert text.index("Private counter") < text.index("#If VBA7") < handler
+    assert text.index("#End If") < handler, "declaration-only blocks stay in the declarations"
+    assert handler < text.index("#If Win64"), (
+        "handlers go outside, before the conditional procedures"
+    )
+    assert text.count("#If") == text.count("#End If") == 2

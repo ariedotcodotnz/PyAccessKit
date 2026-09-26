@@ -99,6 +99,8 @@ _PROCEDURE_START = re.compile(
     r"^\s*(?:(?:Public|Private|Friend)\s+)?(?:Static\s+)?(?:Sub|Function|Property\s+(?:Get|Let|Set))\s",
     re.IGNORECASE,
 )
+_DIRECTIVE_IF = re.compile(r"^\s*#If\b", re.IGNORECASE)
+_DIRECTIVE_END_IF = re.compile(r"^\s*#End\s*If\b", re.IGNORECASE)
 _OPTION_LINE = re.compile(r"^\s*Option\s+(?:Compare|Explicit)\b", re.IGNORECASE)
 
 
@@ -106,14 +108,27 @@ def split_declarations(code: str) -> tuple[str, str]:
     """Split VBA into its declarations section and its procedures (``Option`` lines are dropped).
 
     Everything before the first ``Sub``/``Function``/``Property`` is the declarations section; comments
-    directly above that procedure stay with it.
+    directly above that procedure stay with it. A ``#If ... #End If`` block containing that procedure is
+    never split: it moves to the procedures as a whole.
     """
     lines = [
         line
         for line in code.replace("\r\n", "\n").replace("\r", "\n").split("\n")
         if not _OPTION_LINE.match(line)
     ]
-    start = next((i for i, line in enumerate(lines) if _PROCEDURE_START.match(line)), len(lines))
+    start = len(lines)
+    depth, block_start = 0, 0
+    for index, line in enumerate(lines):
+        if _DIRECTIVE_IF.match(line):
+            if depth == 0:
+                block_start = index
+            depth += 1
+        elif _DIRECTIVE_END_IF.match(line):
+            depth = max(depth - 1, 0)
+        elif _PROCEDURE_START.match(line):
+            # Never split inside #If ... #End If: the whole conditional block goes with the procedures.
+            start = block_start if depth else index
+            break
     while start > 0 and lines[start - 1].lstrip().startswith("'"):
         start -= 1
     return "\n".join(lines[:start]).strip("\n"), "\n".join(lines[start:]).strip("\n")

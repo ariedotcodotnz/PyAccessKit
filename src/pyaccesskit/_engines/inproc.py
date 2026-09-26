@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +41,7 @@ class InProcDaoEngine:
         exclusive: bool,
         password: str | None,
         native_defaults: bool = True,
+        on_created: Callable[[], None] | None = None,
     ) -> None:
         self._path = path
         self._readonly = readonly
@@ -58,11 +60,18 @@ class InProcDaoEngine:
         with self._com.op(f"{verb} database {path}", path=path):
             if create:
                 locale = c.dbLangGeneral + (f";pwd={password}" if password else "")
+                # CreateDatabase fails if the file exists, so a returned database is ours.
                 self._db = self._dbengine.CreateDatabase(
                     str(path), locale, int(c.DatabaseTypeEnum.dbVersion120)
                 )
+                if on_created is not None:
+                    on_created()
                 if native_defaults:
-                    apply_native_defaults(self._db)
+                    try:
+                        apply_native_defaults(self._db)
+                    except BaseException:
+                        self.close()  # release the file so the session can delete it
+                        raise
             else:
                 self._db = self._open()
         self._schema = DaoSchemaBackend(

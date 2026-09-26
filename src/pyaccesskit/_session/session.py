@@ -109,15 +109,17 @@ class Session:
         self._factory = factory or default_factory
         self._probe = probe or DefaultProbe()
         self._raw = ProxyRegistry()
+        self._owns_working = False  # set only when our engine created the file
         self._kind = self._select()
         try:
             self._engine: EngineHandle = self._factory(
                 self._plan(self._kind, create=create, design=False)
             )
         except BaseException:
-            # No AccessDatabase (and so no finalizer) exists yet: remove what the engine may have created.
+            # No AccessDatabase (and so no finalizer) exists yet. Delete the file only if our engine created
+            # it: with atomic=False another process may have created the target meanwhile.
             self.state = "closed"
-            if create:
+            if self._owns_working:
                 with contextlib.suppress(Exception):
                     self._discard()
             raise
@@ -135,7 +137,11 @@ class Session:
             password=self.password,
             design=design,
             options=self.options,
+            on_created=self._mark_created if create else None,
         )
+
+    def _mark_created(self) -> None:
+        self._owns_working = True
 
     def _select(self) -> Literal["dao", "access"]:
         progid = self.options.access_progid

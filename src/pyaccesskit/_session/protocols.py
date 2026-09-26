@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Protocol
@@ -27,6 +28,8 @@ class EnginePlan:
     password: str | None
     design: bool
     options: SessionOptions
+    on_created: Callable[[], None] | None = None
+    """Called by the engine as soon as it has created ``path`` itself (so failures may delete it)."""
 
 
 class EngineHandle(Protocol):
