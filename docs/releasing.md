@@ -27,7 +27,7 @@ anywhere. The documentation is deployed to GitHub Pages by `docs.yml`.
 3. **GitHub environments.** In the repository, go to *Settings → Environments* and create `pypi` and
    `testpypi`. On `pypi`, add yourself as a required reviewer, so each upload waits for your approval.
 4. **GitHub Pages.** Go to *Settings → Pages → Source: GitHub Actions*. The docs deploy on every push to
-   `main`.
+   the default branch (`main` or `master`).
 
 ## Each release
 

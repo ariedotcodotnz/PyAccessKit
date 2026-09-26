@@ -35,7 +35,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/ariedotcodotnz/PyAccessKit"
 Documentation = "https://ariedotcodotnz.github.io/PyAccessKit/"
-Changelog = "https://github.com/ariedotcodotnz/PyAccessKit/blob/main/CHANGELOG.md"
+Changelog = "https://github.com/ariedotcodotnz/PyAccessKit/blob/HEAD/CHANGELOG.md"
 Issues = "https://github.com/ariedotcodotnz/PyAccessKit/issues"
 Source = "https://github.com/ariedotcodotnz/PyAccessKit"
 

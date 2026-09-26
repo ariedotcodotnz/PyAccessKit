@@ -161,10 +161,10 @@ Exit codes: `0` success, `1` error, `2` usage error, `3` environment unusable.
 - Reference: [errors](https://ariedotcodotnz.github.io/PyAccessKit/reference/errors/), [data types](https://ariedotcodotnz.github.io/PyAccessKit/reference/data-types/),
   [command line](https://ariedotcodotnz.github.io/PyAccessKit/reference/cli/), and an API reference generated from the docstrings
 - [Environment & troubleshooting](https://ariedotcodotnz.github.io/PyAccessKit/environment/), [FAQ](https://ariedotcodotnz.github.io/PyAccessKit/faq/),
-  [contributing](https://ariedotcodotnz.github.io/PyAccessKit/contributing/), [architecture decisions](https://github.com/ariedotcodotnz/PyAccessKit/tree/main/docs/adr)
-- Examples: [`examples/`](https://github.com/ariedotcodotnz/PyAccessKit/tree/main/examples) (`04_inventory_app.py` is the complete, tested application the agent
+  [contributing](https://ariedotcodotnz.github.io/PyAccessKit/contributing/), [architecture decisions](https://github.com/ariedotcodotnz/PyAccessKit/tree/HEAD/docs/adr)
+- Examples: [`examples/`](https://github.com/ariedotcodotnz/PyAccessKit/tree/HEAD/examples) (`04_inventory_app.py` is the complete, tested application the agent
   guide walks through)
 
 ## License
 
-MIT. See [LICENSE](https://github.com/ariedotcodotnz/PyAccessKit/blob/main/LICENSE).
+MIT. See [LICENSE](https://github.com/ariedotcodotnz/PyAccessKit/blob/HEAD/LICENSE).
