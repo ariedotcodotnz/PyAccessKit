@@ -1,0 +1,167 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyaccesskit"
+dynamic = ["version"]
+description = "A modern, typed, Pythonic toolkit for building and modifying Microsoft Access databases and applications."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Arie Joe" }]
+keywords = ["microsoft-access", "access", "accdb", "dao", "com", "pywin32", "automation", "database"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pywin32>=306; sys_platform == 'win32'",
+    "pydantic>=2.7,<3",
+    "typer>=0.12",
+]
+
+[project.scripts]
+pyaccesskit = "pyaccesskit.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-timeout>=2.3",
+    "hypothesis>=6.100",
+    "ruff>=0.6",
+    "pyright>=1.1.380",
+    "types-pywin32>=306",
+]
+docs = [
+    "mkdocs>=1.6,<2",  # MkDocs 2.0 drops the plugin system mkdocstrings relies on
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.26",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.hatch.version]
+path = "src/pyaccesskit/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pyaccesskit"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src",
+    "tests",
+    "docs",
+    "examples",
+    "scripts",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "mkdocs.yml",
+]
+exclude = ["scripts/spikes"]  # throwaway research scripts; their findings live in docs/adr
+
+# --------------------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = ["scripts/spikes", "src/pyaccesskit/_com/constants.py"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "UP", "SIM", "RUF", "C4", "PIE", "PT", "RET", "PTH",
+    "PL", "TID", "D",
+]
+ignore = [
+    "E501",    # line length is managed by `ruff format`; long string literals are kept intact
+    "D105",    # docstrings on magic methods
+    "D107",    # docstring in __init__ (documented on the class)
+    "PLR0911", # too many return statements
+    "PLR0912", # too many branches
+    "PLR0913", # too many arguments (keyword-only option lists are intentional)
+    "PLR0915", # too many statements
+    "PLR2004", # magic values (COM constants and limits are named where it matters)
+    "RET504",  # unnecessary assignment before return (readability)
+    "SIM105",  # contextlib.suppress (explicit try/except is clearer around COM)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"pythoncom".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+"pywintypes".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+"win32com".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+"win32api".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+"win32con".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+"win32event".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+"win32gui".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+"win32job".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+"win32process".msg = "pywin32 may only be imported inside pyaccesskit._com, ._win and ._backends.{dao,access}."
+
+[tool.ruff.lint.per-file-ignores]
+"src/pyaccesskit/_com/**" = ["TID251"]
+"src/pyaccesskit/_win/**" = ["TID251"]
+"src/pyaccesskit/_backends/dao/**" = ["TID251"]
+"src/pyaccesskit/_backends/access/**" = ["TID251"]
+"src/pyaccesskit/_engines/**" = ["TID251", "PLC0415"]
+"src/pyaccesskit/_session/**" = ["PLC0415"]
+"src/pyaccesskit/maintenance.py" = ["PLC0415"]
+"src/pyaccesskit/diagnostics.py" = ["PLC0415"]
+"src/pyaccesskit/_*/**" = ["D100", "D101", "D102", "D103", "D104"]
+"tests/**" = ["D", "TID251", "PLC0415", "PT011", "PT018"]
+"scripts/**" = ["D", "TID251", "T201", "PLC0415"]
+"examples/**" = ["D", "T201"]
+
+# ------------------------------------------------------------------------ pyright
+[tool.pyright]
+include = ["src", "tests", "scripts", "examples"]
+exclude = ["scripts/spikes", "**/__pycache__", ".venv*"]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+strict = ["src/pyaccesskit"]
+reportMissingModuleSource = false
+
+# ------------------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+# faulthandler is disabled: on Windows it reports first-chance RPC exceptions that COM raises *and handles*
+# (e.g. RPC_E_DISCONNECTED when a proxy to an exited Access is released) as "fatal exceptions".
+addopts = ["-ra", "--strict-markers", "--strict-config", "-p", "no:faulthandler"]
+xfail_strict = true
+markers = [
+    "integration: needs Windows plus Microsoft Access and/or ACE; opt in with --integration",
+    "access: needs full Microsoft Access (Access.Application automation)",
+    "dao: needs in-process DAO (Python bitness must match Office/ACE bitness)",
+    "lifecycle: Access process lifecycle / leak tests (slow)",
+]
+
+# ----------------------------------------------------------------------- coverage
+[tool.coverage.run]
+source = ["pyaccesskit"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+    "\\.\\.\\.$",
+]
