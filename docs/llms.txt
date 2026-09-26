@@ -1,0 +1,41 @@
+# PyAccessKit
+
+> A typed, Pythonic library for creating and modifying Microsoft Access databases (.accdb) and applications
+> from Python: tables, relationships, queries, data, forms and VBA modules, without raw COM/pywin32. It
+> manages the Access process safely (never touches the user's own Access; no orphaned MSACCESS.EXE).
+
+Key facts: Windows only for database work (specs import on any OS). Use `with AccessDatabase.create(...)`
+or `with AccessDatabase.open(...)`. Access SQL dialect (Jet/ACE). Run `pyaccesskit guide` for the
+version-matched guide for AI agents, `pyaccesskit doctor --json` to check the machine,
+`pyaccesskit inspect DB --json` to read a database, `pyaccesskit schema` for JSON Schemas.
+
+## Start here
+
+- [Agent guide](agents/guide.md): rules, API cheat sheet, SQL notes, errors, limits, complete example
+- [Full documentation in one file](llms-full.txt)
+- [Getting started](getting-started.md)
+
+## Guides
+
+- [Tables](guides/tables.md)
+- [Relationships](guides/relationships.md)
+- [Queries & data](guides/queries.md)
+- [Forms](guides/forms.md)
+- [VBA modules](guides/modules.md)
+- [Text import/export](guides/text-io.md)
+- [Recipes](guides/recipes.md)
+
+## Reference
+
+- [Errors](reference/errors.md)
+- [Data types](reference/data-types.md)
+- [Command line](reference/cli.md)
+- [API reference](reference/api/pyaccesskit/index.md)
+
+## Optional
+
+- [Engines](concepts/engines.md)
+- [Lifecycle & safety](concepts/lifecycle.md)
+- [Specs, handles & collections](concepts/specs.md)
+- [Environment & troubleshooting](environment.md)
+- [FAQ](faq.md)

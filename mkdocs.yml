@@ -8,7 +8,9 @@ theme:
   features:
     - navigation.sections
     - navigation.top
+    - navigation.indexes
     - content.code.copy
+    - search.suggest
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -33,9 +35,17 @@ markdown_extensions:
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
 
 plugins:
   - search
+  - gen-files:
+      scripts:
+        - scripts/gen_ref_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
   - mkdocstrings:
       handlers:
         python:
@@ -48,10 +58,15 @@ plugins:
             show_signature_annotations: true
             separate_signature: true
             merge_init_into_class: true
+            show_submodules: false
+            filters: ["!^_"]
 
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Building with AI agents:
+      - agents/index.md
+      - Agent guide: agents/guide.md
   - Concepts:
       - Engines: concepts/engines.md
       - Lifecycle & safety: concepts/lifecycle.md
@@ -63,8 +78,14 @@ nav:
       - Forms: guides/forms.md
       - VBA modules: guides/modules.md
       - Text import/export: guides/text-io.md
+      - Recipes: guides/recipes.md
+  - Reference:
+      - Errors: reference/errors.md
+      - Data types: reference/data-types.md
+      - Command line: reference/cli.md
+      - API: reference/api/
   - Environment & troubleshooting: environment.md
-  - API reference: reference.md
+  - FAQ: faq.md
   - Contributing: contributing.md
   - Architecture decisions:
       - "0001: Spike findings": adr/0001-spike-findings.md

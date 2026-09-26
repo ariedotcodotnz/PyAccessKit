@@ -37,6 +37,13 @@ PyAccessKit replaces that with:
 - **Process ownership**: every Access process is started fresh, tracked by identity, placed in a
   kill-on-close job object, and closed even when your code raises.
 
+## Built for AI coding agents
+
+Specs are plain, validated data with a JSON Schema, and errors explain themselves. Builds are atomic and
+every Access process is cleaned up, so an agent can write, run and fix code in a loop without leaving
+damage behind. `pyaccesskit guide` prints a compact, version-matched guide that tells an agent how to write
+Access applications with the library. See [Building with AI agents](agents/index.md).
+
 ## Design principles
 
 1. **The COM world is quarantined.** Only a few internal packages import `pywin32`. Everything else,

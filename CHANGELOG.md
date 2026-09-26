@@ -43,6 +43,18 @@ First release.
 - **CLI.** `pyaccesskit doctor [--json] [--probe]`, `pyaccesskit inspect DB [--json] [--counts]` and
   `pyaccesskit cleanup [--dry-run] [--json]`. `python -m pyaccesskit`.
 - **Diagnostics.** `pyaccesskit.diagnose()`.
+- **For AI agents.** `pyaccesskit guide` prints a version-matched guide (rules, API cheat sheet, SQL dialect
+  notes, error table, limits, and a complete tested example); `pyaccesskit schema` prints JSON Schemas of the
+  specs; the documentation site publishes `llms.txt` and `llms-full.txt`.
+- **Documentation.** Recipes, error / data-type / CLI references, FAQ, and an API reference generated from
+  the docstrings.
+
+### Fixed (found while documenting)
+
+- Opening a database for design no longer runs its `StartUpForm` (which could raise dialogs with code
+  disabled); the setting is preserved.
+- `bytes` query parameters are declared as `LongBinary`, so OLE Object data is no longer corrupted; binary
+  values read back as `bytes`.
 
 [Unreleased]: #
 [0.1.0]: #

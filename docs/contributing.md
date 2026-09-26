@@ -75,5 +75,19 @@ Access quirks discovered by integration tests, get an entry too.
 ## Documentation
 
 ```console
-uv run --group docs mkdocs serve
+uv run --group docs mkdocs serve             # live preview
+uv run --group docs mkdocs build --strict    # what CI runs
+uv run python scripts/sync_docs.py           # after editing the agent guide, example 04 or doc pages
 ```
+
+- **API reference** pages are generated from docstrings at build time (`scripts/gen_ref_pages.py`, one page
+  per public module). Public modules and their public objects need Google-style docstrings; Ruff's
+  pydocstyle rules enforce this.
+- **The agent guide** lives in `src/pyaccesskit/AGENT_GUIDE.md` so it ships in the wheel
+  (`pyaccesskit guide`). The docs page includes that file. Its complete example is copied from
+  `examples/04_inventory_app.py` by `scripts/sync_docs.py`, which also regenerates `docs/llms-full.txt`.
+- **Tests keep the docs honest**: every Python snippet in the docs, README and guide must parse, their
+  `pyaccesskit` imports must exist, generated files must be in sync, and the examples run against real
+  Access in the integration suite.
+- When you discover an Access behaviour that affects users, record it in `docs/adr/` and, if an agent
+  could trip over it, add a rule or error row to the agent guide.

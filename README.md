@@ -141,21 +141,29 @@ relationship, or incompatible key types each raise a precise `ObjectExistsError`
 pyaccesskit doctor [--json] [--probe]      # environment report (exit code 3 if nothing works)
 pyaccesskit inspect DB [--json] [--counts] # tables, relationships, queries, objects; read-only
 pyaccesskit cleanup [--dry-run] [--json]   # end orphaned Access processes started by PyAccessKit
+pyaccesskit guide [--path]                 # the guide for AI coding agents
+pyaccesskit schema [KIND]                  # JSON Schema of the specs
 ```
 
 Exit codes: `0` success, `1` error, `2` usage error, `3` environment unusable.
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md)
+- [Getting started](docs/getting-started.md) and [recipes](docs/guides/recipes.md)
+- **[Building with AI agents](docs/agents/index.md)**: `pyaccesskit guide` prints a version-matched guide
+  that lets coding agents write Access applications with PyAccessKit; `pyaccesskit schema` prints the
+  JSON Schemas of the specs; the site publishes `llms.txt` and `llms-full.txt`.
 - Concepts: [engines](docs/concepts/engines.md), [lifecycle](docs/concepts/lifecycle.md),
   [specs](docs/concepts/specs.md)
 - Guides: [tables](docs/guides/tables.md), [relationships](docs/guides/relationships.md),
   [queries](docs/guides/queries.md), [forms](docs/guides/forms.md), [modules](docs/guides/modules.md),
   [text I/O](docs/guides/text-io.md)
-- [Environment & troubleshooting](docs/environment.md), [contributing](docs/contributing.md),
-  [architecture decisions](docs/adr/)
-- Examples: [`examples/`](examples/)
+- Reference: [errors](docs/reference/errors.md), [data types](docs/reference/data-types.md),
+  [command line](docs/reference/cli.md), and an API reference generated from the docstrings
+- [Environment & troubleshooting](docs/environment.md), [FAQ](docs/faq.md),
+  [contributing](docs/contributing.md), [architecture decisions](docs/adr/)
+- Examples: [`examples/`](examples/) (`04_inventory_app.py` is the complete, tested application the agent
+  guide walks through)
 
 ## License
 
