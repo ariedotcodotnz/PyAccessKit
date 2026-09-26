@@ -7,7 +7,7 @@ under **Changed**).
 
 ## [Unreleased]
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-09-26
 
 First release.
 
@@ -56,5 +56,5 @@ First release.
 - `bytes` query parameters are declared as `LongBinary`, so OLE Object data is no longer corrupted; binary
   values read back as `bytes`.
 
-[Unreleased]: #
-[0.1.0]: #
+[Unreleased]: https://github.com/ariedotcodotnz/PyAccessKit/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ariedotcodotnz/PyAccessKit/releases/tag/v0.1.0

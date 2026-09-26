@@ -71,8 +71,22 @@ def guide(
     if path:
         typer.echo(guide_path())
     else:
-        sys.stdout.write(guide_text())
+        write_text(guide_text())
     raise typer.Exit(EXIT_OK)
+
+
+def write_text(text: str) -> None:
+    """Write to stdout; when piped on Windows (ANSI code page) fall back to UTF-8 instead of failing."""
+    try:
+        text.encode(sys.stdout.encoding or "utf-8")
+    except (UnicodeEncodeError, LookupError):
+        buffer = getattr(sys.stdout, "buffer", None)
+        if buffer is not None:
+            sys.stdout.flush()
+            buffer.write(text.encode("utf-8"))
+            buffer.flush()
+            return
+    sys.stdout.write(text)
 
 
 def schema(

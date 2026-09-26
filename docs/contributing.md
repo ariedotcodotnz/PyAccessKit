@@ -91,3 +91,7 @@ uv run python scripts/sync_docs.py           # after editing the agent guide, ex
   Access in the integration suite.
 - When you discover an Access behaviour that affects users, record it in `docs/adr/` and, if an agent
   could trip over it, add a rule or error row to the agent guide.
+
+## Releasing
+
+See [Releasing](releasing.md): Trusted Publishing to PyPI from GitHub Actions, and the per-release checklist.

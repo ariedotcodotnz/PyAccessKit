@@ -32,6 +32,13 @@ dependencies = [
     "typer>=0.12",
 ]
 
+[project.urls]
+Homepage = "https://github.com/ariedotcodotnz/PyAccessKit"
+Documentation = "https://ariedotcodotnz.github.io/PyAccessKit/"
+Changelog = "https://github.com/ariedotcodotnz/PyAccessKit/blob/main/CHANGELOG.md"
+Issues = "https://github.com/ariedotcodotnz/PyAccessKit/issues"
+Source = "https://github.com/ariedotcodotnz/PyAccessKit"
+
 [project.scripts]
 pyaccesskit = "pyaccesskit.cli:main"
 

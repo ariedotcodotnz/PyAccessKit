@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import re
 import subprocess
 import sys
@@ -92,3 +93,15 @@ def test_schema_all_validates_a_real_spec() -> None:
     data = json.loads(CliRunner().invoke(cli_app.app, ["schema"]).output)
     assert set(data) == {"table", "column", "index", "relationship", "query", "form"}
     assert "columns" in data["table"]["properties"]
+
+
+def test_guide_can_be_piped_with_an_ansi_code_page() -> None:
+    """Agents read the guide through a pipe; on Windows that pipe defaults to cp1252."""
+    result = subprocess.run(
+        [sys.executable, "-m", "pyaccesskit", "guide"],
+        capture_output=True,
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr.decode("utf-8", "replace")
+    assert result.stdout.decode("utf-8") == guide_text()

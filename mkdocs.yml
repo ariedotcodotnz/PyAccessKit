@@ -2,6 +2,10 @@ site_name: PyAccessKit
 site_description: A modern, typed, Pythonic toolkit for Microsoft Access databases and applications.
 site_author: Arie Joe
 copyright: Copyright &copy; 2026 Arie Joe
+site_url: https://ariedotcodotnz.github.io/PyAccessKit/
+repo_url: https://github.com/ariedotcodotnz/PyAccessKit
+repo_name: ariedotcodotnz/PyAccessKit
+edit_uri: edit/main/docs/
 
 theme:
   name: material
@@ -87,6 +91,7 @@ nav:
   - Environment & troubleshooting: environment.md
   - FAQ: faq.md
   - Contributing: contributing.md
+  - Releasing: releasing.md
   - Architecture decisions:
       - "0001: Spike findings": adr/0001-spike-findings.md
       - "0002: Integration findings": adr/0002-integration-findings.md
