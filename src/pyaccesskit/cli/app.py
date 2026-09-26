@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 
 from pyaccesskit._version import __version__
+from pyaccesskit.cli.agent import guide, schema
 from pyaccesskit.cli.cleanup import cleanup
 from pyaccesskit.cli.doctor import doctor
 from pyaccesskit.cli.inspection import inspect_database
@@ -44,6 +45,8 @@ def _root(
 app.command("doctor")(doctor)
 app.command("inspect")(inspect_database)
 app.command("cleanup")(cleanup)
+app.command("guide")(guide)
+app.command("schema")(schema)
 
 
 def run() -> None:

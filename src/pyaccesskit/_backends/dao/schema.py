@@ -15,6 +15,7 @@ Behaviours verified in ADR 0001:
 from __future__ import annotations
 
 import contextlib
+import re
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
@@ -116,6 +117,24 @@ def _set_prop(obj: Any, name: str, dao_type: int, value: Any) -> None:
 
 def _param_value(value: Any) -> Any:
     return to_variant(value)
+
+
+_BINARY = (bytes, bytearray, memoryview)
+_PARAMETERS_CLAUSE = re.compile(r"^\s*PARAMETERS\s+", re.IGNORECASE)
+
+
+def _declare_binary_parameters(sql: str, params: Mapping[str, Any] | None) -> str:
+    """Declare bytes-valued parameters as ``LongBinary``: implicit parameters are text (ADR 0002)."""
+    names = [key.strip("[]") for key, value in (params or {}).items() if isinstance(value, _BINARY)]
+    match = _PARAMETERS_CLAUSE.match(sql)
+    declared = sql[: sql.find(";")].casefold() if match and ";" in sql else ""
+    names = [name for name in names if f"[{name.casefold()}]" not in declared]
+    if not names:
+        return sql
+    declaration = ", ".join(f"[{name}] LongBinary" for name in names)
+    if match:
+        return f"{sql[: match.end()]}{declaration}, {sql[match.end() :]}"
+    return f"PARAMETERS {declaration};\n{sql}"
 
 
 def _item(collection: Any, key: Any) -> Any:
@@ -702,16 +721,28 @@ class DaoSchemaBackend:
         if missing:
             raise MissingParameterError(f"no value supplied for parameter(s) {missing}", sql=sql)
         for key, value in given.items():
-            available[key].Value = _param_value(value)
+            parameter = available[key]
+            if isinstance(value, _BINARY) and int(parameter.Type) not in (
+                tm.DB_BINARY,
+                tm.DB_LONGBINARY,
+            ):
+                # An implicit (text) parameter would silently corrupt the bytes (ADR 0002).
+                raise SpecError(
+                    f"parameter [{key}] receives bytes but is not binary; declare it in the saved query, "
+                    f"e.g. 'PARAMETERS [{key}] LongBinary;'"
+                )
+            parameter.Value = _param_value(value)
 
-    def _query(self, sql: str, name: str | None) -> Any:
+    def _query(self, sql: str, name: str | None, params: Mapping[str, Any] | None = None) -> Any:
         db = self._db()
-        return db.QueryDefs(name) if name is not None else db.CreateQueryDef("", sql)
+        if name is not None:
+            return db.QueryDefs(name)
+        return db.CreateQueryDef("", _declare_binary_parameters(sql, params))
 
     def _run(self, sql: str, name: str | None, params: Mapping[str, Any] | None) -> int:
         label = f"run query {name!r}" if name else "run SQL statement"
         with self._com.op(label, kind=ObjectKind.QUERY if name else None, name=name, sql=sql):
-            qd = self._query(sql, name)
+            qd = self._query(sql, name, params)
             self._bind(qd, params, sql)
             qd.Execute(DB_FAIL_ON_ERROR)
             return int(qd.RecordsAffected)
@@ -721,7 +752,7 @@ class DaoSchemaBackend:
     ) -> FetchResult:
         label = f"read rows of query {name!r}" if name else "read rows"
         with self._com.op(label, kind=ObjectKind.QUERY if name else None, name=name, sql=sql):
-            qd = self._query(sql, name)
+            qd = self._query(sql, name, params)
             self._bind(qd, params, sql)
             rs = qd.OpenRecordset(DB_OPEN_SNAPSHOT)
             try:
@@ -761,7 +792,14 @@ class DaoSchemaBackend:
         if container is None:
             raise SpecError(f"{kind.value} objects are not stored in a DAO container")
         with self._com.op(f"list {kind.value}s"):
-            documents = self._db().Containers(container).Documents
+            containers = self._db().Containers
+            containers.Refresh()
+            available = {str(_item(containers, i).Name).casefold() for i in range(containers.Count)}
+            if container.casefold() not in available:
+                # Databases created by DAO get the Forms/Reports/Scripts/Modules containers only once
+                # Access has opened them: no container means no objects of that kind (ADR 0002).
+                return []
+            documents = _item(containers, container).Documents
             documents.Refresh()
             names = [str(_item(documents, i).Name) for i in range(documents.Count)]
             return [name for name in names if not name.startswith("~")]
