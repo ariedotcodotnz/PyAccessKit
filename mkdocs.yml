@@ -1,0 +1,71 @@
+site_name: PyAccessKit
+site_description: A modern, typed, Pythonic toolkit for Microsoft Access databases and applications.
+site_author: Arie Joe
+copyright: Copyright &copy; 2026 Arie Joe
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            members_order: source
+            show_source: false
+            show_root_heading: true
+            show_signature_annotations: true
+            separate_signature: true
+            merge_init_into_class: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Concepts:
+      - Engines: concepts/engines.md
+      - Lifecycle & safety: concepts/lifecycle.md
+      - Specs, handles & collections: concepts/specs.md
+  - Guides:
+      - Tables: guides/tables.md
+      - Relationships: guides/relationships.md
+      - Queries & data: guides/queries.md
+      - Forms: guides/forms.md
+      - VBA modules: guides/modules.md
+      - Text import/export: guides/text-io.md
+  - Environment & troubleshooting: environment.md
+  - API reference: reference.md
+  - Contributing: contributing.md
+  - Architecture decisions:
+      - "0001: Spike findings": adr/0001-spike-findings.md
+      - "0002: Integration findings": adr/0002-integration-findings.md

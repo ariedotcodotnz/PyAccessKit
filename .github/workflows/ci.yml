@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      access-integration:
+        description: "Also run the real-Access integration suite on a self-hosted runner"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  typecheck:
+    # The COM boundary uses Windows-only modules (winreg, pywin32), so type-check on Windows.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run pyright
+
+  test:
+    # Unit, contract (fake backend) and CLI tests. They need neither Access nor pywin32, so they also run
+    # on Linux; the integration tiers are skipped without --integration.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --python ${{ matrix.python-version }}
+      - run: uv run --python ${{ matrix.python-version }} pytest
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --locked --group docs mkdocs build --strict
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build
+      - run: uvx twine check --strict dist/*
+
+  access-integration:
+    # Microsoft does not support Office automation from services; run this only on a self-hosted runner in
+    # an interactive Windows session with Microsoft Access installed (labels are examples).
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.access-integration }}
+    runs-on: [self-hosted, windows, msaccess]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run pyaccesskit doctor --probe
+      - run: uv run pytest --integration
