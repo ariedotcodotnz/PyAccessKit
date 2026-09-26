@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import Self
 
 from pydantic import Field, field_validator, model_validator
@@ -16,9 +17,22 @@ from pyaccesskit.units import Length
 __all__ = ["FormSpec", "label_name_for"]
 
 
+_LABEL_SUFFIX = "_Label"
+_MAX_NAME = 64
+
+
 def label_name_for(control_name: str) -> str:
-    """The name Access gives a control's attached label (``CustomerName`` → ``CustomerName_Label``)."""
-    return f"{control_name}_Label"
+    """The name of a control's attached label (``CustomerName`` → ``CustomerName_Label``).
+
+    Access names are limited to 64 characters. For long control names the name is shortened and a hash of
+    the full control name keeps it unique and stable (collisions are still checked by :class:`FormSpec`).
+    """
+    name = f"{control_name}{_LABEL_SUFFIX}"
+    if len(name) <= _MAX_NAME:
+        return name
+    digest = hashlib.sha1(control_name.encode("utf-8"), usedforsecurity=False).hexdigest()[:8]
+    keep = _MAX_NAME - len(_LABEL_SUFFIX) - len(digest) - 1
+    return f"{control_name[:keep]}_{digest}{_LABEL_SUFFIX}"
 
 
 class FormSpec(SpecModel):

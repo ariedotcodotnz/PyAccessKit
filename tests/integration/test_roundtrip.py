@@ -15,6 +15,7 @@ from pyaccesskit import (
     IndexSpec,
     MissingParameterError,
     NumberSize,
+    ObjectExistsError,
     SpecError,
     SqlSyntaxError,
     TableSpec,
@@ -223,3 +224,35 @@ def test_dao_created_database_gets_native_defaults(tmp_path: Path) -> None:
     with AccessDatabase.create(path, engine="access") as db:
         assert db.properties["UseMDIMode"] == 0
         assert db.properties["ShowDocumentTabs"] is True
+
+
+def test_table_rule_on_a_decimal_column_and_required_ole(tmp_path: Path) -> None:
+    """The table rule is installed only after ADO has added the Decimal column it refers to."""
+    path = tmp_path / "rules.accdb"
+    spec = TableSpec(
+        name="Priced",
+        columns=[
+            Column.autonumber("ID", primary_key=True),
+            Column.decimal("Amount", precision=10, scale=2),
+            Column.ole_object("Payload", required=True),
+        ],
+        validation_rule="[Amount] >= 0",
+        validation_text="Amount cannot be negative",
+    )
+    with AccessDatabase.create(
+        path
+    ) as db:  # auto: covers in-process DAO when this Python can load it
+        db.tables.create(spec)
+    with AccessDatabase.open(path, readonly=True) as db:
+        assert db.tables["Priced"].to_spec() == spec.normalized()
+
+
+def test_add_column_with_clashing_index_name_changes_nothing(tmp_path: Path) -> None:
+    with AccessDatabase.create(tmp_path / "clash.accdb") as db:
+        table = db.tables.create(
+            "T", columns=[Column.text("A")], indexes=[IndexSpec.on("Code", "A")]
+        )
+        with pytest.raises(ObjectExistsError):
+            table.add_column(Column.text("Code", unique=True))
+        assert table.to_spec().column_names == ("A",)
+        table.add_column(Column.text("Code"))  # retrying without the shorthand works

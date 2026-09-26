@@ -117,12 +117,11 @@ def import_object(
     """``LoadFromText`` an object from text (encoded the way Access expects for ``kind``)."""
     _check_kind(kind)
     check_name(name, what=f"{kind.value} name")
-    if kind is not ObjectKind.QUERY:
-        existing = find_object(design, kind, name)
-        if existing is not None and not replace:
-            raise ObjectExistsError(
-                f"a {kind.value} named {existing!r} already exists (pass replace=True to overwrite it)",
-                kind=kind,
-                name=name,
-            )
+    existing = find_object(design, kind, name)
+    if existing is not None and not replace:  # LoadFromText would overwrite without asking
+        raise ObjectExistsError(
+            f"a {kind.value} named {existing!r} already exists (pass replace=True to overwrite it)",
+            kind=kind,
+            name=name,
+        )
     design.import_text(kind, name, codec.encode_import(kind, text))

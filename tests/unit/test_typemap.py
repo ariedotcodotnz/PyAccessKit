@@ -67,6 +67,7 @@ ROUND_TRIPS = [
     Column.date_time("Epoch", default=datetime(2026, 1, 31, 12, 30)),
     Column.yes_no("Active", default=True),
     Column.ole_object("Blob"),
+    Column.ole_object("Payload", required=True),
 ]
 
 

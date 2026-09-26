@@ -105,8 +105,10 @@ class FormCollection:
     def build(self, spec: FormSpec, *, replace: bool = False) -> Form:
         """Build a form from a finished :class:`FormSpec` (atomically)."""
         self._session.check_writable(f"build form {spec.name!r}")
+        # design() may switch engines (closing in-process DAO), so resolve the schema backend afterwards.
+        design = self._session.design()
         resolved: ResolvedForm = design_ops.build_form(
-            self._session.schema(), self._session.design(), spec, replace=replace
+            self._session.schema(), design, spec, replace=replace
         )
         return Form(self._session, resolved.spec.name)
 

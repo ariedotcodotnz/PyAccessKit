@@ -379,7 +379,7 @@ def column_from_field(read: FieldRead) -> ColumnBase:
     if code == DB_BOOLEAN:
         return YesNoColumn(**common, required=read.required, default=default)
     if code == DB_LONGBINARY:
-        return OleObjectColumn(**common)
+        return OleObjectColumn(**common, required=read.required)
     details = {
         DB_BIGINT: "Large Number",
         DB_DATETIME_EXTENDED: "Date/Time Extended",

@@ -84,8 +84,40 @@ def build_module(
     header = ["Option Compare Database"]
     if option_explicit:
         header.append("Option Explicit")
+    declarations, procedures = split_declarations(extra_code or "")
     parts = ["\r\n".join(header) + "\r\n"]
+    # VBA only accepts module-level declarations before the first procedure.
+    if declarations:
+        parts.append(_crlf(declarations))
     parts.extend(event_procedure(binding) for binding in bindings)
-    if extra_code and extra_code.strip():
-        parts.append(extra_code.replace("\r\n", "\n").replace("\n", "\r\n").strip("\r\n") + "\r\n")
+    if procedures:
+        parts.append(_crlf(procedures))
     return "\r\n".join(parts)
+
+
+_PROCEDURE_START = re.compile(
+    r"^\s*(?:(?:Public|Private|Friend)\s+)?(?:Static\s+)?(?:Sub|Function|Property\s+(?:Get|Let|Set))\s",
+    re.IGNORECASE,
+)
+_OPTION_LINE = re.compile(r"^\s*Option\s+(?:Compare|Explicit)\b", re.IGNORECASE)
+
+
+def split_declarations(code: str) -> tuple[str, str]:
+    """Split VBA into its declarations section and its procedures (``Option`` lines are dropped).
+
+    Everything before the first ``Sub``/``Function``/``Property`` is the declarations section; comments
+    directly above that procedure stay with it.
+    """
+    lines = [
+        line
+        for line in code.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        if not _OPTION_LINE.match(line)
+    ]
+    start = next((i for i, line in enumerate(lines) if _PROCEDURE_START.match(line)), len(lines))
+    while start > 0 and lines[start - 1].lstrip().startswith("'"):
+        start -= 1
+    return "\n".join(lines[:start]).strip("\n"), "\n".join(lines[start:]).strip("\n")
+
+
+def _crlf(code: str) -> str:
+    return code.replace("\n", "\r\n") + "\r\n"

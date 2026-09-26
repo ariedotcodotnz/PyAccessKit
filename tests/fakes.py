@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,8 @@ class FakeEngine:
         self.backend = shared
         if plan.create:
             plan.path.write_bytes(b"fake accdb")
+            if factory.fail_after_create:
+                raise RuntimeError("fake engine failed while configuring the new database")
 
     @property
     def transport(self) -> Transport:
@@ -47,13 +50,13 @@ class FakeEngine:
     def supports_design(self) -> bool:
         return self.plan.kind == "access"
 
-    def schema(self) -> FakeBackend:
-        return self.backend
+    def schema(self) -> Any:
+        return _Guarded(self, self.backend)
 
-    def design(self) -> FakeBackend:
+    def design(self) -> Any:
         if self.plan.kind != "access":
             raise CapabilityError("no design in fake DAO engine")
-        return self.backend
+        return _Guarded(self, self.backend)
 
     def raw(self, which: str) -> Any:
         return FakeComObject(which)
@@ -66,6 +69,19 @@ class FakeEngine:
 
     def terminate(self) -> None:
         self.terminated = True
+
+
+class _Guarded:
+    """A backend that stops working once its engine is closed, like a released DAO database."""
+
+    def __init__(self, engine: FakeEngine, backend: FakeBackend) -> None:
+        self._engine = engine
+        self._backend = backend
+
+    def __getattr__(self, name: str) -> Any:
+        if self._engine.closed:
+            raise RuntimeError(f"backend of a closed {self._engine.plan.kind} engine used ({name})")
+        return getattr(self._backend, name)
 
 
 class FakeComObject:
@@ -86,6 +102,7 @@ class FakeFactory:
     backends: dict[Path, FakeBackend] = field(default_factory=dict)
     close_errors: list[BaseException] = field(default_factory=list)
     close_interrupt: bool = False
+    fail_after_create: bool = False
 
     def __call__(self, plan: EnginePlan) -> FakeEngine:
         engine = FakeEngine(plan, self)
@@ -102,11 +119,16 @@ def fake_database(
     probe: FakeProbe | None = None,
     factory: FakeFactory | None = None,
     atomic: bool = True,
+    overwrite: bool = False,
 ) -> tuple[AccessDatabase, FakeFactory]:
     """An :class:`AccessDatabase` backed by the in-memory fake engine."""
     factory = factory or FakeFactory()
     target = tmp_path / "fake.accdb"
-    working = target.with_name(".fake.pak-test.accdb") if (create and atomic) else target
+    working = (
+        target.with_name(f".fake.pak-{uuid.uuid4().hex[:8]}.accdb")
+        if (create and atomic)
+        else target
+    )
     if not create and not target.exists():
         target.write_bytes(b"fake accdb")
     session = Session(
@@ -120,5 +142,6 @@ def fake_database(
         options=SessionOptions(),
         factory=factory,
         probe=probe or FakeProbe(),
+        overwrite=overwrite,
     )
     return AccessDatabase(session), factory

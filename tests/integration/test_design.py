@@ -185,3 +185,27 @@ def test_constants_match_the_installed_type_libraries() -> None:
     sys.modules["gen_constants"] = module
     spec.loader.exec_module(module)
     assert module.OUTPUT.read_text(encoding="utf-8") == module.render()
+
+
+def test_auto_engine_form_and_module_declarations(tmp_path: Path) -> None:
+    """A form built right after in-process DAO work (auto engine) whose module declares variables."""
+    with AccessDatabase.create(tmp_path / "auto.accdb") as db:
+        _schema(db)
+        with db.forms.create("frmCustomers", record_source="Customers") as form:
+            form.textbox("CustomerName")
+            form.on_load(Vba("loads = loads + 1"))
+            form.module_code(
+                "Private loads As Long\n\nPrivate Function Twice() As Long\n    Twice = 2 * loads\nEnd Function\n"
+            )
+        db.forms["frmCustomers"].check_opens()  # compiles the module: declarations must come first
+
+
+def test_query_text_import_requires_replace(tmp_path: Path) -> None:
+    with AccessDatabase.create(tmp_path / "q.accdb", engine="access") as db:
+        _schema(db)
+        db.queries.create("qryCustomers", "SELECT * FROM Customers;")
+        text = db.objects.export_text("query", "qryCustomers")
+        with pytest.raises(ObjectExistsError):
+            db.objects.import_text("query", "qryCustomers", text)
+        db.objects.import_text("query", "qryCustomers", text, replace=True)
+        assert "Customers" in db.queries["qryCustomers"].sql

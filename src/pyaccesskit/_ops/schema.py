@@ -7,6 +7,8 @@ before Access is touched at all.
 
 from __future__ import annotations
 
+import contextlib
+import uuid
 from collections.abc import Iterable
 
 from pyaccesskit._backends.protocols import SchemaBackend, TableInfo
@@ -203,13 +205,30 @@ def add_column(schema: SchemaBackend, table: str, column: ColumnSpec, *, lint: b
                 name=column.name, fields=(IndexField(name=column.name),), unique=column.unique
             )
         )
+    for index in new_indexes:  # check before mutating: a clash would otherwise strand the column
+        if any(_key(i.name) == _key(index.name) for i in spec.indexes):
+            raise ObjectExistsError(
+                f"table {spec.name!r} already has an index named {index.name!r}; add the column "
+                "without the shorthand and create the index with an explicit name",
+                kind=ObjectKind.INDEX,
+                name=index.name,
+            )
     if new_indexes:
         _index_budget(schema, spec.name, len(new_indexes))
     if lint:
         warn_name(column.name, what=f"column name in table {spec.name!r}", stacklevel=4)
     schema.add_column(spec.name, column.normalized())
-    for index in new_indexes:
-        schema.create_index(spec.name, index)
+    created: list[str] = []
+    try:
+        for index in new_indexes:
+            schema.create_index(spec.name, index)
+            created.append(index.name)
+    except BaseException:
+        with contextlib.suppress(Exception):
+            for name in reversed(created):
+                schema.drop_index(spec.name, name)
+            schema.drop_column(spec.name, column.name)
+        raise
 
 
 def drop_column(schema: SchemaBackend, table: str, column: str) -> None:
@@ -386,10 +405,14 @@ def create_or_replace_query(
             )
         current = schema.read_query(existing)
         if current.pass_through != spec.pass_through:
-            schema.drop_query(existing)
-            schema.create_query(spec.normalized())
+            _swap_query(schema, existing, spec.normalized())
             return True
-        if sql_equivalent(current.sql, spec.sql):
+        if spec.pass_through is not None:
+            # Server dialect: Access's SQL normalization (case folding...) does not apply.
+            unchanged = _line_endings(current.sql) == _line_endings(spec.sql)
+        else:
+            unchanged = sql_equivalent(current.sql, spec.sql)
+        if unchanged:
             return False
         schema.set_query_sql(existing, spec.normalized().sql)
         return True
@@ -397,6 +420,33 @@ def create_or_replace_query(
     warn_name(spec.name, what="query name", stacklevel=4)
     schema.create_query(spec.normalized())
     return True
+
+
+def _line_endings(sql: str) -> str:
+    return sql.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
+def _swap_query(schema: SchemaBackend, existing: str, replacement: QuerySpec) -> None:
+    """Replace a query whose type changes: build the new one first so a failure keeps the original."""
+    original = schema.read_query(existing)
+    temporary = f"~pak_tmp_{uuid.uuid4().hex[:8]}"
+    try:
+        schema.create_query(replacement.model_copy(update={"name": temporary}))
+    except BaseException:
+        with contextlib.suppress(Exception):
+            if find_query(schema, temporary) is not None:
+                schema.drop_query(temporary)
+        raise
+    try:
+        schema.drop_query(existing)
+        schema.rename_query(temporary, replacement.name)
+    except BaseException:
+        with contextlib.suppress(Exception):
+            if find_query(schema, existing) is None:
+                schema.create_query(original)
+        with contextlib.suppress(Exception):
+            schema.drop_query(temporary)
+        raise
 
 
 def rename_query(schema: SchemaBackend, old: str, new: str) -> str:

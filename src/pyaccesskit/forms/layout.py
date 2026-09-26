@@ -264,6 +264,12 @@ def layout_form(spec: FormSpec, metrics: LayoutMetrics = DEFAULT_METRICS) -> Res
         or (c.label is not None and c.label.section is not Section.DETAIL)
         for c in placed
     )
+    if spec.header is False and header_needed:
+        raise SpecError(
+            f"form {spec.name!r} has header=False, but its layout puts labels in the form header "
+            "(tabular layouts label their columns there); allow the header, pass label=False on the "
+            "controls, or use layout='stacked'"
+        )
     has_header = spec.header if spec.header is not None else header_needed
     header_height: Length | None = None
     footer_height: Length | None = None

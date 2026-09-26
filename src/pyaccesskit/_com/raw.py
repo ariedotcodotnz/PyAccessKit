@@ -16,7 +16,7 @@ from typing import Any
 
 from pyaccesskit.errors import SessionClosedError
 
-__all__ = ["ProxyRegistry", "RevocableProxy"]
+__all__ = ["ProxyRegistry", "RevocableIterator", "RevocableProxy"]
 
 _SLOTS = ("_pak_target", "_pak_registry", "_pak_label", "__weakref__")
 
@@ -25,11 +25,11 @@ class ProxyRegistry:
     """Tracks every proxy created for a session so they can all be revoked at once."""
 
     def __init__(self) -> None:
-        self._proxies: weakref.WeakSet[RevocableProxy] = weakref.WeakSet()
+        self._proxies: weakref.WeakSet[RevocableProxy | RevocableIterator] = weakref.WeakSet()
         self._lock = threading.Lock()
         self.revoked = False
 
-    def track(self, proxy: RevocableProxy) -> None:
+    def track(self, proxy: RevocableProxy | RevocableIterator) -> None:
         with self._lock:
             self._proxies.add(proxy)
 
@@ -40,7 +40,9 @@ class ProxyRegistry:
             self._proxies.clear()
             self.revoked = True
         for proxy in proxies:
-            object.__setattr__(proxy, "_pak_target", None)
+            object.__setattr__(
+                proxy, "_pak_target", None
+            )  # iterators drop their COM enumerator too
         return len(proxies)
 
     def wrap(self, value: Any, label: str) -> Any:
@@ -101,8 +103,9 @@ class RevocableProxy:
         target = self._pak_require()
         label = object.__getattribute__(self, "_pak_label")
         registry: ProxyRegistry = object.__getattribute__(self, "_pak_registry")
-        for index, item in enumerate(target):
-            yield registry.wrap(item, f"{label}[{index}]")
+        iterator = RevocableIterator(iter(target), registry, label)
+        registry.track(iterator)
+        return iterator
 
     def __getitem__(self, key: Any) -> Any:
         target = self._pak_require()
@@ -125,3 +128,37 @@ class RevocableProxy:
         label = object.__getattribute__(self, "_pak_label")
         state = "revoked" if self.revoked else "live"
         return f"<pyaccesskit raw {label} ({state})>"
+
+
+class RevocableIterator:
+    """Iterates a raw COM collection; revoking it drops the enumerator, so resuming raises."""
+
+    __slots__ = ("_pak_index", *_SLOTS)
+
+    def __init__(self, target: Iterator[Any], registry: ProxyRegistry, label: str) -> None:
+        object.__setattr__(self, "_pak_target", target)
+        object.__setattr__(self, "_pak_registry", registry)
+        object.__setattr__(self, "_pak_label", label)
+        object.__setattr__(self, "_pak_index", 0)
+
+    def __iter__(self) -> RevocableIterator:
+        return self
+
+    def __next__(self) -> Any:
+        target = object.__getattribute__(self, "_pak_target")
+        label = object.__getattribute__(self, "_pak_label")
+        if target is None:
+            raise SessionClosedError(
+                f"iteration over raw COM object {label} was revoked because its PyAccessKit session was "
+                "closed or upgraded"
+            )
+        item = next(target)
+        index = object.__getattribute__(self, "_pak_index")
+        object.__setattr__(self, "_pak_index", index + 1)
+        registry: ProxyRegistry = object.__getattribute__(self, "_pak_registry")
+        return registry.wrap(item, f"{label}[{index}]")
+
+    @property
+    def revoked(self) -> bool:
+        """Whether the underlying enumerator has been released."""
+        return object.__getattribute__(self, "_pak_target") is None

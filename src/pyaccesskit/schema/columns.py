@@ -45,6 +45,7 @@ __all__ = [
     "LongTextColumn",
     "NumberColumn",
     "OleObjectColumn",
+    "OleObjectOptions",
     "TextColumn",
     "UnsupportedColumn",
     "YesNoColumn",
@@ -429,6 +430,12 @@ class AutoNumberOptions(TypedDict, total=False):
     properties: dict[str, PropertyValue]
 
 
+class OleObjectOptions(AutoNumberOptions, total=False):
+    """Keyword options accepted by :meth:`Column.ole_object` (no default value)."""
+
+    required: bool
+
+
 class Column:
     """Factory for column specs, mirroring the data types of the Access table designer.
 
@@ -597,6 +604,6 @@ class Column:
         )
 
     @staticmethod
-    def ole_object(name: str, **options: Unpack[AutoNumberOptions]) -> OleObjectColumn:
+    def ole_object(name: str, **options: Unpack[OleObjectOptions]) -> OleObjectColumn:
         """OLE Object (long binary)."""
         return build(OleObjectColumn, f"OLE object column {name!r}", name=name, **options)

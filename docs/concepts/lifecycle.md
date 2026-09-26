@@ -23,7 +23,10 @@ with AccessDatabase.create("app.accdb", overwrite=True) as db:
 
 The database is built in a hidden sibling file (`.app.pak-1a2b3c4d.accdb`). When the block ends normally,
 that file replaces `app.accdb`. When it raises, the file is deleted and `app.accdb`, even an existing one
-you asked to overwrite, is untouched. Pass `atomic=False` to build in place.
+you asked to overwrite, is untouched. Without `overwrite=True`, a file that someone else created at
+`app.accdb` in the meantime is never replaced: closing raises a `CleanupError` wrapping
+`DatabaseExistsError`, and the new database is left at its temporary path. Pass `atomic=False` to
+build in place.
 
 ## Closing, even when things go wrong
 
@@ -71,7 +74,7 @@ raises `AccessTimeoutError`. Pressing Ctrl+C during a long call terminates the o
 ## Threads
 
 COM objects belong to the thread (apartment) that created them. A session can only be used from the thread
-that opened it; other threads get `WrongThreadError`. For parallel work, use separate processes, each with
+that opened it, and that includes `close()`: other threads get `WrongThreadError`. For parallel work, use separate processes, each with
 its own session.
 
 ## Session options

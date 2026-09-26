@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -29,6 +31,7 @@ from pyaccesskit.errors import (
     CapabilityError,
     CleanupError,
     DaoNotAvailableError,
+    DatabaseExistsError,
     DatabaseLockedError,
     EngineUnavailableError,
     ReadOnlyError,
@@ -90,8 +93,10 @@ class Session:
         options: SessionOptions,
         factory: EngineFactory | None = None,
         probe: EnvironmentProbe | None = None,
+        overwrite: bool = False,
     ) -> None:
         self.target = target
+        self.overwrite = overwrite
         self.working = working
         self.created = create
         self.readonly = readonly
@@ -105,9 +110,17 @@ class Session:
         self._probe = probe or DefaultProbe()
         self._raw = ProxyRegistry()
         self._kind = self._select()
-        self._engine: EngineHandle = self._factory(
-            self._plan(self._kind, create=create, design=False)
-        )
+        try:
+            self._engine: EngineHandle = self._factory(
+                self._plan(self._kind, create=create, design=False)
+            )
+        except BaseException:
+            # No AccessDatabase (and so no finalizer) exists yet: remove what the engine may have created.
+            self.state = "closed"
+            if create:
+                with contextlib.suppress(Exception):
+                    self._discard()
+            raise
         self.state = "open"
         logger.info("opened %s via %s", target, self._engine.transport.value)
 
@@ -156,6 +169,14 @@ class Session:
             raise WrongThreadError(
                 "a PyAccessKit session can only be used from the thread that opened it (COM objects are "
                 "bound to their apartment); open a separate session per thread or process"
+            )
+
+    def check_thread(self) -> None:
+        """Raise :class:`WrongThreadError` if an unclosed session is used from another thread."""
+        if self.state != "closed" and threading.get_ident() != self.thread_id:
+            raise WrongThreadError(
+                "a PyAccessKit session can only be closed from the thread that opened it (COM objects are "
+                "bound to their apartment); close it there, or call terminate() for an emergency stop"
             )
 
     def check_writable(self, action: str) -> None:
@@ -231,6 +252,7 @@ class Session:
         """Close the session. With ``error`` set, a newly created database is discarded."""
         if self.state in ("closing", "closed"):
             return
+        self.check_thread()
         self.state = "closing"
         cleanup: list[BaseException] = []
         interrupt: BaseException | None = None
@@ -291,13 +313,29 @@ class Session:
 
     def _commit(self) -> None:
         try:
-            self._retry(lambda: self.working.replace(self.target))
+            if self.overwrite:
+                self._retry(lambda: self.working.replace(self.target))
+            else:
+                self._retry(self._move_without_replacing)
+        except FileExistsError as exc:
+            raise DatabaseExistsError(
+                f"{self.target} was created by someone else while this session was building it; the new "
+                f"database was left at {self.working}",
+                path=self.target,
+            ) from exc
         except OSError as exc:
             raise DatabaseLockedError(
                 f"could not move the new database into place at {self.target} ({exc}); it was left at {self.working}",
                 path=self.target,
             ) from exc
         self._remove_lock_file(self.working)
+
+    def _move_without_replacing(self) -> None:
+        if sys.platform == "win32":
+            self.working.rename(self.target)  # MoveFileEx without REPLACE_EXISTING: fails if taken
+        else:
+            os.link(self.working, self.target)  # atomic "create if absent" on POSIX
+            self.working.unlink()
 
     def _discard(self) -> None:
         self._retry(lambda: self.working.unlink(missing_ok=True))

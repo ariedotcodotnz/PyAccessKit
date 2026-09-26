@@ -20,7 +20,7 @@ EXIT_ERROR = 1
 EXIT_USAGE = 2
 EXIT_ENVIRONMENT = 3
 
-_SECRET = re.compile(r"(?i)\b(PWD|PASSWORD)=[^;]*")
+_SECRET_KEYS = re.compile(r"(?i)PWD|PASSWORD")
 
 
 def stdout() -> Console:
@@ -33,9 +33,47 @@ def stderr() -> Console:
     return Console(stderr=True, highlight=False)
 
 
+def _segments(connect: str) -> list[str]:
+    """Split a connection string at the ``;`` separators, honouring ODBC ``{...}`` values (``}}`` escapes)."""
+    segments: list[str] = []
+    current: list[str] = []
+    index, braced, at_value_start = 0, False, False
+    while index < len(connect):
+        char = connect[index]
+        if braced:
+            current.append(char)
+            if char == "}":
+                if connect[index + 1 : index + 2] == "}":  # escaped closing brace
+                    current.append("}")
+                    index += 1
+                else:
+                    braced = False
+        elif char == ";":
+            segments.append("".join(current))
+            current = []
+            at_value_start = False
+        else:
+            current.append(char)
+            if char == "{" and at_value_start:
+                braced = True
+            at_value_start = char == "=" and "=" not in "".join(current[:-1])
+        index += 1
+    segments.append("".join(current))
+    return segments
+
+
 def redact(connect: str | None) -> str | None:
-    """Hide passwords in a connection string."""
-    return None if connect is None else _SECRET.sub(r"\1=***", connect)
+    """Hide password values (``PWD=``/``Password=``, including ``{brace;quoted}`` ones) in a connection string."""
+    if connect is None:
+        return None
+    parts: list[str] = []
+    for segment in _segments(connect):
+        key, sep, _value = segment.partition("=")
+        if sep and _SECRET_KEYS.fullmatch(key.strip()):
+            parts.append(f"{key}=***")
+        else:
+            parts.append(segment)
+    return ";".join(parts)
 
 
 def print_json(data: Any) -> None:

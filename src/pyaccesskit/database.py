@@ -180,6 +180,7 @@ class AccessDatabase:
             password=None,
             engine=Engine(engine),
             options=options or SessionOptions(),
+            overwrite=overwrite,
         )
         return cls(session)
 
@@ -272,7 +273,8 @@ class AccessDatabase:
 
     # ------------------------------------------------------------------------------------ close
     def close(self) -> None:
-        """Close the session and release everything (idempotent)."""
+        """Close the session and release everything (idempotent; only from the thread that opened it)."""
+        self._session.check_thread()
         self._finalizer.detach()
         self._session.close()
 
@@ -285,6 +287,7 @@ class AccessDatabase:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        self._session.check_thread()
         self._finalizer.detach()
         self._session.close(error=exc)
 

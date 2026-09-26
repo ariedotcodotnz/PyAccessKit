@@ -338,6 +338,12 @@ class DaoSchemaBackend:
             idx.Fields.Append(idx_field)
         tdf.Indexes.Append(idx)
 
+    @staticmethod
+    def _set_table_validation(tdf: Any, spec: TableSpec) -> None:
+        tdf.ValidationRule = spec.validation_rule
+        if spec.validation_text:
+            tdf.ValidationText = spec.validation_text
+
     def _decimal_ddl(self, table: str, column: DecimalColumn) -> None:
         self._run_ddl(
             f"ALTER TABLE {quote_identifier(table)} ADD COLUMN {quote_identifier(column.name)} "
@@ -359,10 +365,9 @@ class DaoSchemaBackend:
                 tdf.Fields.Append(tdf.CreateField(PLACEHOLDER, tm.DB_LONG))
             for column, plan in dao_columns:
                 tdf.Fields.Append(self._make_field(tdf, column, plan))
-            if spec.validation_rule:
-                tdf.ValidationRule = spec.validation_rule
-                if spec.validation_text:
-                    tdf.ValidationText = spec.validation_text
+            if spec.validation_rule and not decimal_columns:
+                # With Decimal columns the rule waits until the ADO DDL has added them (_finish_table).
+                self._set_table_validation(tdf, spec)
             db.TableDefs.Append(tdf)
             del tdf, db
         try:
@@ -397,6 +402,8 @@ class DaoSchemaBackend:
                     tdf.Fields(column.name).OrdinalPosition = position
             for index in spec.indexes:
                 self._append_index(tdf, index)
+            if spec.validation_rule and decimal_columns:
+                self._set_table_validation(tdf, spec)
             if spec.description is not None:
                 _set_prop(
                     tdf,

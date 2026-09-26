@@ -116,7 +116,7 @@ class FakeBackend:
         self._queries: dict[str, QuerySpec] = {}
         self._custom: dict[tuple[str, str, str], dict[str, tuple[str, PropertyValue]]] = {}
         self._objects: dict[ObjectKind, dict[str, tuple[str, bytes]]] = {
-            kind: {} for kind in _DESIGN_KINDS
+            kind: {} for kind in (*_DESIGN_KINDS, ObjectKind.QUERY)
         }
         self._forms: dict[str, ResolvedForm] = {}
 
@@ -550,6 +550,8 @@ class FakeBackend:
         names = {key: name for key, (name, _) in self._objects[kind].items()}
         if kind is ObjectKind.FORM:
             names.update({key: form.spec.name for key, form in self._forms.items()})
+        if kind is ObjectKind.QUERY:  # like CurrentData.AllQueries: saved QueryDefs are listed too
+            names.update({key: query.name for key, query in self._queries.items()})
         return names
 
     def list_objects(self, kind: ObjectKind) -> list[str]:
